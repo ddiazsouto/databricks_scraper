@@ -6,8 +6,8 @@ from selenium.webdriver.common.by import By
 
 class Scraper:
 
-    def __init__(self):
-        options = webdriver.ChromeOptions() 
+    def __init__(self, param_papam):
+        options = webdriver.ChromeOptions()
         options.add_argument("user-data-dir=C:\\Users\\DestRuktoR\\AppData\\Local\\Google\\Chrome\\User Data\\Profile 3")
         driver = webdriver.Chrome(options=options)
         self._driver = driver
