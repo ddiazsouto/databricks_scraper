@@ -2,6 +2,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from scraper import Scraper
 import time
+from functions import  extract_user, extract_date
 from login_info import EMAIL, PASSWD
 
 
@@ -52,21 +53,21 @@ class DatabricksUsers(Scraper):
                 scraper._await_element_located(By.XPATH, "//span[normalize-space()='Terminate']", 5)
                 logs['Active clusters'].append(cluster_name)
                 try:
-                    self.access_the_data()
+                    print("Accessing the data")
+                    self.open_and_read_notebooks_tab()
                 except TimeoutException:
                     continue
             except TimeoutException:
                 logs['Inactive clusters'].append(cluster_name)
 
-    def access_the_data(self):
-        # Clicks on the cluster Notebooks tab
+    def open_and_read_notebooks_tab(self):
         open_notebooks_tab = self._await_element_located(By.XPATH, "/html[1]/body[1]/div[1]/div[3]/div[1]/div[2]/div[1]/div[1]/div[1]/form[1]/div[2]/uses-legacy-bootstrap[1]/ul[1]/li[2]/a[1]", 10)
         open_notebooks_tab.click()
-        # Not we iterate through the pages reading the information
-        last_page = False
-        while not last_page:
-            read_table_with_usernames = self._await_element_located(By.XPATH, "//tbody[@class='du-bois-light-table-tbody']", 5)
-            self.clusters_information = read_table_with_usernames.text
+
+        read_notebooks_tab = self._await_element_located(By.XPATH, "//tbody[@class='du-bois-light-table-tbody']", 5)
+        self.clusters_information = read_notebooks_tab.text
+
+        while notebooks_tab_contains_next_page := True:            
             try:
                 print("HERE")
                 next_page = self._await_element_located(By.XPATH, "//span[@aria-label='right']//*[name()='svg']", 5)
@@ -74,9 +75,9 @@ class DatabricksUsers(Scraper):
                 breakpoint()
                 next_page.click()
             except NoSuchElementException:
-                print("10")
-                last_page = True
+                print("10")                
                 breakpoint()
+                break
         print("2")
         breakpoint()
 
@@ -89,7 +90,7 @@ class DatabricksUsers(Scraper):
 
         return cluster_name, cluster_absolute_path
 
-    def quit():
+    def quit(self):
         self._driver.quit()
 
 
