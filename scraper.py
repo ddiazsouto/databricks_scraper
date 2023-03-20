@@ -15,6 +15,9 @@ class Scraper:
     def _find_element(self, by: By, value):
         return self._driver.find_element((by, value))
 
+    def _get(self, url):
+        self._driver.get(url)
+
     def _await_element_located(self, by: By, value, timeout):
         wait = WebDriverWait(self._driver, timeout)
         return wait.until(EC.visibility_of_element_located((by, value)))
