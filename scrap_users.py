@@ -44,7 +44,7 @@ class DatabricksUsers(Scraper):
             Takes a start in the main Databricks dashboard, then goes to the Compute tab and reads the existing clusters
             and collects theis url addresses from the compute clusters table.
         """
-        self._driver.find_element(By.XPATH, "//a[@data-testid='Compute']").click()
+        self._await_element_located(By.XPATH, "//a[@data-testid='Compute']", 10).click()
         try:
             table_row = 1
             while table_row := table_row + 1:
