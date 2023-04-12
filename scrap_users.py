@@ -3,19 +3,28 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from scraper import Scraper
 from functions import extract_user, extract_date, build_array
 from login_info import EMAIL, PASSWD
+import pandas as pd
+import datetime
+import os
 
 
 databricks_target_path = "https://adb-909870082157824.4.azuredatabricks.net/"\
                          "?o=909870082157824#notebook/908271178432007/command/908271178432009"
 
-logs = {'Inactive clusters': [], 'Active clusters': [], "Cluster iterations": []}
-
+dummy_data = {"Daniel Diaz Souto's Cluster": [['Alias Idle', 'Tue, Apr 11, 2023, 16:45:46 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Alias']],
+              "Retail_Users": [['Eight Idle', 'Tue, Apr 11, 2023, 16:46:05 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Contains/Eight'],
+                               ['Scrap it Idle', 'Tue, Apr 11, 2023, 16:35:07 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Scrap it'],
+                               ['Test Idle', 'Tue, Apr 11, 2023, 16:45:21 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Test'],
+                               ['Five Idle', 'Tue, Apr 11, 2023, 16:46:12 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Contains/Five']]
+                               }
+logs = {'Inactive clusters': []}
 
 class DatabricksUsers(Scraper):
 
     def __init__(self, headless):
         super().__init__(headless)
         self.found_clusters = {}
+        self.data = {}
 
     def login(self, databricks_target_path):
         """
@@ -48,10 +57,9 @@ class DatabricksUsers(Scraper):
         try:
             table_row = 1
             while table_row := table_row + 1:
-                cluster_row = self._await_element_located(By.XPATH,
-                                                          "//div[1]/div[3]/div[1]/div[2]/div[1]/div[1]/div[1]"
-                                                          "/div[1]/div[1]/div[1]/div[1]/div[2]/div[1]/div[1]/div[1]"
-                                                          f"/div[1]/div[2]/table[1]/tbody[1]/tr[{table_row}]", 5)
+                cluster_row = self._await_element_located(By.XPATH, "//div[1]/div[3]/div[1]/div[2]/div[1]/div[1]"
+                                                          "/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]/div[1]/"
+                                                          f"div[{table_row}]", 5)
                 cluster_name, cluster_path = self._extract_cluster_name_and_path(cluster_row)
                 self.found_clusters[cluster_name] = cluster_path
         except TimeoutException:
@@ -62,11 +70,34 @@ class DatabricksUsers(Scraper):
             self._get(cluster_path)
             try:
                 scraper._await_element_located(By.XPATH, "//span[normalize-space()='Terminate']", 5)
-                self._open_notebooks_tab_and_collect_information()
+                notebooks_information = self._open_notebooks_tab_and_collect_information(cluster_name)
+                self.data[cluster_name] = notebooks_information
             except TimeoutException:
                 logs['Inactive clusters'].append(cluster_name)
 
-    def _open_notebooks_tab_and_collect_information(self):
+    @property
+    def dataframe_from_current_data(self):
+        dataframe = {'Cluster_name': [], 'Notebook_name': [], 'Status': [],
+                     'Workspace_name': [], 'Last_command_run': [], 'User_location': []}
+        for cluster, notebook_information in self.data.items():
+            for table_row in notebook_information:
+                dataframe['User_location'].append(table_row[-1])
+                dataframe['Last_command_run'].append(extract_date(table_row))
+                dataframe['Status'].append(table_row[0].split()[-1])
+                dataframe['Notebook_name'].append(table_row[0].split()[0])
+                dataframe['Cluster_name'].append(cluster)
+                dataframe['Workspace_name'].append(0)  # TODO: change that 0 for other value
+        
+        return pd.DataFrame(dataframe)
+
+    def save_file_in_path(self, df: pd.DataFrame):
+
+        path = f"databricks/data/cluster_information/{datetime.date.today()}/"
+        os.makedirs(path, exist_ok=True)
+        current_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+        df.to_csv(f"{path}/{current_timestamp}.csv", index=False)
+
+    def _open_notebooks_tab_and_collect_information(self, cluster_name):
         # Open notebooks tab from a cluster's main dashboard
         self._await_element_located(By.XPATH, "/html[1]/body[1]/div[1]/div[3]/div[1]/div[2]/div[1]/div[1]/div[1]"
                                               "/form[1]/div[2]/uses-legacy-bootstrap[1]/ul[1]/li[2]/a[1]", 10).click()
@@ -78,8 +109,9 @@ class DatabricksUsers(Scraper):
                 next_page = self._await_element_located(By.XPATH, "//span[@aria-label='right']//*[name()='svg']", 5)
                 next_page.click()
             except TimeoutException:
-                breakpoint()
-                break
+                if notebooks_table.text == 'No notebooks are attached to this cluster':
+                    break # Need to design what would happen here
+                return cluster_notebooks
 
     def _extract_cluster_name_and_path(self, cluster_row):
         cluster_name = cluster_row.text.split("\n")[0]
@@ -90,21 +122,21 @@ class DatabricksUsers(Scraper):
 
         return cluster_name, cluster_absolute_path
 
-    def quit(self):
+    def run(self):
+        print("\n\n>>>>> Login\n")
+        self.login(databricks_target_path)
+        print("\n\n>>>>> Collect clusters path\n")
+        self.collect_existing_clusters_path()
+        print("\n\n>>>>> Look at the active clusters\n")
+        self.lookup_active_clusters_notebooks_and_its_users()
+        print(">>>>> Parsing collected data")
+        df = self.dataframe_from_current_data
+        self.save_file_in_path(df)
+        self._quit()
+
+    def _quit(self):
         self._driver.quit()
 
 
 scraper = DatabricksUsers(True)
-print("\n\n>>> Login\n")
-scraper.login(databricks_target_path)
-print("\n\n>>> Collect clusters path\n")
-scraper.collect_existing_clusters_path()
-print("\n\n>>> Look at the active clusters\n")
-scraper.lookup_active_clusters_notebooks_and_its_users()
-breakpoint()
-scraper.quit()
-
-
-# print("\n\n Inner html")
-# print(reat_table_with_usernames.get_attribute('innerHTML'))
-# time.sleep(50)
+scraper.run()
