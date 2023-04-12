@@ -1,5 +1,5 @@
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from scraper import Scraper
 from functions import extract_user, extract_date, build_array
 from login_info import EMAIL, PASSWD
@@ -72,14 +72,15 @@ class DatabricksUsers(Scraper):
 
     @property
     def dataframe_from_current_data(self):
-        dataframe = {'Cluster_name': [], 'Notebook_name': [], 'Status': [],
-                     'Workspace_name': [], 'Last_command_run': [], 'User_location': []}
+        dataframe = {'Cluster_name': [], 'Notebook_name': [], 'Status': [], 'User': [],
+                     'Workspace_name': [], 'Last_command_run': [], 'Location': []}
         for cluster, notebook_information in self.data.items():
             for table_row in notebook_information:
-                dataframe['User_location'].append(table_row[-1])
+                dataframe['Location'].append(table_row[-1])
                 dataframe['Last_command_run'].append(extract_date(table_row))
                 dataframe['Status'].append(table_row[0].split()[-1])
                 dataframe['Notebook_name'].append(table_row[0].split()[0])
+                dataframe['User'].append(extract_user(table_row))
                 dataframe['Cluster_name'].append(cluster)
                 dataframe['Workspace_name'].append(0)  # TODO: change that 0 for other value
         
@@ -128,6 +129,7 @@ class DatabricksUsers(Scraper):
         df = self.dataframe_from_current_data
         self.save_file_in_path(df)
         self._quit()
+        breakpoint()
 
     def _quit(self):
         self._driver.quit()
@@ -135,3 +137,7 @@ class DatabricksUsers(Scraper):
 
 scraper = DatabricksUsers(True)
 scraper.run()
+
+//span[@class='css-se451o']
+
+/html[1]/body[1]/div[1]/uses-legacy-bootstrap[1]/div[1]/div[1]/div[3]/span[1]
