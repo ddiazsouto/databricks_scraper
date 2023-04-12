@@ -1,7 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-from scraper import Scraper
-from functions import extract_user, extract_date, build_array
+from databricks_scraper.scraper import Scraper
+from databricks_scraper.functions import extract_user, extract_date, build_array
 from login_info import EMAIL, PASSWD
 import pandas as pd
 import datetime
@@ -64,7 +64,7 @@ class DatabricksUsers(Scraper):
         for cluster_name, cluster_path in self.found_clusters.items():
             self._get(cluster_path)
             try:
-                scraper._await_element_located(By.XPATH, "//span[normalize-space()='Terminate']", 5)
+                self._await_element_located(By.XPATH, "//span[normalize-space()='Terminate']", 5)
                 notebooks_information = self._open_notebooks_tab_and_collect_information(cluster_name)
                 self.data[cluster_name] = notebooks_information
             except TimeoutException:
@@ -133,11 +133,3 @@ class DatabricksUsers(Scraper):
 
     def _quit(self):
         self._driver.quit()
-
-
-scraper = DatabricksUsers(True)
-scraper.run()
-
-//span[@class='css-se451o']
-
-/html[1]/body[1]/div[1]/uses-legacy-bootstrap[1]/div[1]/div[1]/div[3]/span[1]
