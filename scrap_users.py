@@ -11,13 +11,6 @@ import os
 databricks_target_path = "https://adb-909870082157824.4.azuredatabricks.net/"\
                          "?o=909870082157824#notebook/908271178432007/command/908271178432009"
 
-dummy_data = {"Daniel Diaz Souto's Cluster": [['Alias Idle', 'Tue, Apr 11, 2023, 16:45:46 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Alias']],
-              "Retail_Users": [['Eight Idle', 'Tue, Apr 11, 2023, 16:46:05 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Contains/Eight'],
-                               ['Scrap it Idle', 'Tue, Apr 11, 2023, 16:35:07 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Scrap it'],
-                               ['Test Idle', 'Tue, Apr 11, 2023, 16:45:21 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Test'],
-                               ['Five Idle', 'Tue, Apr 11, 2023, 16:46:12 GMT+1', 'by ddiazsouto@gmail.com', '/Users/ddiazsouto@gmail.com/Contains/Five']]
-                               }
-logs = {'Inactive clusters': []}
 
 class DatabricksUsers(Scraper):
 
@@ -25,6 +18,8 @@ class DatabricksUsers(Scraper):
         super().__init__(headless)
         self.found_clusters = {}
         self.data = {}
+        self.logs = {'Inactive clusters': [],
+                     'Automatic access': False}
 
     def login(self, databricks_target_path):
         """
@@ -36,7 +31,7 @@ class DatabricksUsers(Scraper):
         try:
             self._manual_verification_needed
         except TimeoutException:
-            print("We're in I would say")
+            self.logs['Automatic access'] = True
 
     def _manual_verification_needed(self):
         for text_box_locator, text_to_input in zip(["loginfmt", "passwd"], [EMAIL, PASSWD]):
@@ -73,7 +68,7 @@ class DatabricksUsers(Scraper):
                 notebooks_information = self._open_notebooks_tab_and_collect_information(cluster_name)
                 self.data[cluster_name] = notebooks_information
             except TimeoutException:
-                logs['Inactive clusters'].append(cluster_name)
+                self.logs['Inactive clusters'].append(cluster_name)
 
     @property
     def dataframe_from_current_data(self):
